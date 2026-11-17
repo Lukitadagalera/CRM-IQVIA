@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Farmacêutico — Mercado Brasil</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="scroll-progress" id="scrollProgress"></div>
+<header class="app-topbar">
+  <div class="brand"><span class="brand-mark">Rx</span><div><strong>Panorama Estratégico</strong><small>Inteligência de Mercado Farmacêutico</small></div></div>
+  <div class="topbar-actions"><span class="live-clock" id="liveClock"></span><button class="tb-btn" id="presentBtn" title="Modo apresentação (P)">▶ Apresentar</button></div><div class="topbar-meta"><span class="live-dot"></span>Base IQVIA · MAT Jun/26</div>
+</header>
+
+<!-- Filter Bar -->
+<div class="filter-bar" id="filterBar">
+  <label>Molécula</label>
+  <div class="mol-filter" id="molFilter">
+    <button type="button" class="mol-filter-btn" id="molFilterBtn" aria-haspopup="true" aria-expanded="false">
+      <span id="molFilterLabel">Todas</span><span class="mol-caret"></span>
+    </button>
+    <div class="mol-filter-panel" id="molFilterPanel" hidden>
+      <input type="text" id="molSearch" class="mol-search" placeholder="Buscar molécula..." autocomplete="off">
+      <div class="mol-actions">
+        <button type="button" id="molPickAll">Todas</button>
+        <button type="button" id="molPickNone">Limpar</button>
+      </div>
+      <div class="mol-options" id="molOptions"></div>
+      <div class="mol-footer">
+        <span class="mol-hint" id="molHint"></span>
+        <button type="button" id="molApply" class="mol-apply">Aplicar</button>
+      </div>
+    </div>
+  </div>
+  <select id="filterMolecule" hidden><option value="__all__">Todas</option></select>
+  <label>Canal</label>
+  <select id="filterChannel"><option value="__all__">Todos</option></select>
+  <label>Classe Terap.</label>
+  <select id="filterClass"><option value="__all__">Todas</option></select>
+  <label>Fabricante</label>
+  <select id="filterMfg"><option value="__all__">Todos</option></select>
+  <div id="activeFilters" style="display:flex;gap:5px;flex-wrap:wrap;"></div>
+</div>
+
+<!-- Hero -->
+<section class="hero"><span class="hero-eyebrow">Relatório Executivo · Brasil</span>
+  <h1>Panorama Estratégico:<br>Desempenho de Moléculas</h1>
+  <p class="subtitle">Performance comercial de moléculas — MAT Jun/22 à Jun/26 — IQVIA_NRA_PMB</p>
+</section>
+
+<!-- Centro de Comando (inteligência automática) -->
+<section class="cc-wrap" id="commandCenter">
+  <div class="cc-head"><div><span class="cc-eyebrow">Centro de Comando · Inteligência automática</span><h2>O que a diretoria precisa saber agora</h2></div>
+  <div class="cc-score"><div class="gauge" id="healthGauge"></div><small>Saúde do portfólio</small></div></div>
+  <div class="cc-grid">
+    <div class="cc-card cc-insights"><h4>Insights gerados</h4><ul id="ccInsights"></ul></div>
+    <div class="cc-card cc-alerts"><h4>Alertas e oportunidades</h4><ul id="ccAlerts"></ul></div>
+  </div>
+  <div class="cc-card"><h4>Momentum por molécula <small>receita MAT Jun/22 → Jun/26 · clique para filtrar</small></h4><div class="spark-grid" id="sparkGrid"></div></div>
+  <div class="cc-card sim"><h4>Simulador de cenário — projeção MAT Jun/27</h4>
+    <div class="sim-row"><label>Crescimento das moléculas em alta <b id="simUpV">0%</b></label><input type="range" id="simUp" min="-20" max="40" value="0"></div>
+    <div class="sim-row"><label>Variação das moléculas em retração <b id="simDnV">0%</b></label><input type="range" id="simDn" min="-40" max="20" value="0"></div>
+    <div class="sim-out"><div><small>Base MAT Jun/26</small><strong id="simBase">—</strong></div><div><small>Projeção MAT Jun/27</small><strong id="simProj">—</strong></div><div><small>Variação</small><strong id="simDelta">—</strong></div></div>
+  </div>
+</section>
+
+<!-- Executive Summary -->
+<section class="exec-summary">
+  <div class="exec-card" id="execCard">
+    <div class="exec-title">LEITURA GERAL<button type="button" class="exec-toggle" id="execToggle" aria-expanded="true" aria-controls="execText" title="Expandir / recolher"><span class="exec-toggle-ico">+</span></button></div>
+    <div class="exec-text" id="execText">Selecione uma molécula para ver o resumo executivo.</div>
+  </div>
+</section>
+
+<!-- KPI Row -->
+<section class="kpi-row" id="kpiRow"></section>
+
+<!-- CEO Executive Dashboard (abertura — visao consolidada das 9 moleculas) -->
+<section class="ceo-wrap" id="ceoWrap" style="display:none;">
+  <div class="ceo-card">
+    <div class="ceo-head">
+      <span class="ceo-eyebrow" id="ceoEyebrow">Avaliação de moléculas</span>
+    </div>
+    <div class="ceo-grid" id="ceoGrid"></div>
+    <div class="ceo-cols" id="ceoCols"></div>
+    <div style="padding:0 26px 16px;font-size:0.7rem;color:#6a6a6a;line-height:1.5;">
+      Os valores em R$ (tamanho de mercado e o montante de cada molécula) referem-se ao <b>MAT Jun/26</b>. Já os percentuais e a divisão entre crescimento e retração correspondem à <b>variação do MAT Jun/25 para o MAT Jun/26</b>.
+    </div>
+  </div>
+</section>
+
+<!-- Matriz de Recomendação e Priorização (BLUF — logo após os KPIs) -->
+<section class="invest-wrap" id="investSection">
+  <div class="invest-card">
+    <div class="chart-header"><h3>Conclusão Estratégica: Matriz de Recomendação e Priorização</h3></div>
+    <div class="invest-methodology">
+      <strong>Metodologia de Scoring Ponderado:</strong>
+      <ul>
+        <li><strong>Fatores e Pesos:</strong> Faturamento Total (30%) | Share Hospitalar (25%) | Menor Concorrência (25%) | CAGR (20%).</li>
+        <li><strong>Premissas:</strong> CAGR calculado entre MAT Jun/22 e MAT Jun/26 (4 períodos compostos); menor número de concorrentes resulta em melhor pontuação.</li>
+        <li><strong>Regra de Corte (Porte):</strong> Moléculas com Faturamento Total (5 MATs) inferior a R$ 50 milhões sofrem forte penalização (porte insuficiente), ficando inelegíveis para prioridade alta.</li>
+      </ul>
+    </div>
+    <div class="invest-scroll">
+      <table class="invest" id="investTable">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Molécula</th>
+            <th class="num">Faturamento Total (5 MATs)</th>
+            <th class="num">Share Canal Hospitalar (%)</th>
+            <th class="num">Faturamento Hospitalar (5 MATs)</th>
+            <th class="num">Qtd. de Concorrentes</th>
+            <th class="num">CAGR (%)</th>
+            <th class="num">Score</th>
+            <th>Prioridade</th>
+          </tr>
+        </thead>
+        <tbody id="investBody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Chart Grid -->
+<!-- B. Contexto Macro -->
+<section class="chart-grid cols-2" id="chartRow1">
+  <div class="chart-card">
+    <div class="chart-header"><h3>Dinâmica de Mercado: Desempenho Histórico de Volume e Receita</h3></div>
+    <div class="chart-body tall" id="chartMatDual"></div>
+    <div class="chart-insight" id="insightMatDual"></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-header"><h3>Evolução Mensal (Últimos 12 Meses)</h3></div>
+    <div class="chart-body tall" id="chartMonthlyDual"></div>
+    <div class="chart-insight" id="insightMonthlyDual"></div>
+  </div>
+</section>
+
+<!-- C. Dinâmica de Canais — Vocacao de Canal por Molecula -->
+<section class="chart-grid cols-1" id="chartRowVocacao">
+  <div class="chart-card">
+    <div class="chart-header"><h3>Exposição ao Varejo vs. Oportunidade Hospitalar e Institucional</h3></div>
+    <div class="chart-body" id="chartVocacao" style="height:360px"></div>
+    <div class="chart-legend-note">Varejo: farmácias e drogarias (demanda via Trade / força de vendas em PDV) &nbsp;|&nbsp; Hospitalar/Institucional: hospitais, licitações e compras públicas (demanda via Market Access) &nbsp;|&nbsp; Outros: canal não especificado.</div>
+    <div class="chart-insight" id="insightVocacao"></div>
+  </div>
+</section>
+
+<!-- 2. Canais e Segmentos -->
+<section class="chart-grid cols-2" id="chartRowCanais">
+  <div class="chart-card">
+    <div class="chart-header"><h3>Distribuição de Faturamento por Canal</h3></div>
+    <div class="chart-body tall" id="chartChannel"></div>
+    <div class="chart-insight" id="insightChannel"></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-header"><h3>Participação por Canal de Distribuição (PPP) — 5 Anos</h3></div>
+    <div class="chart-body tall" id="chartCanal3"></div>
+    <div class="chart-insight" id="insightCanal3"></div>
+  </div>
+</section>
+
+<!-- Passo 3: Cenário Competitivo -->
+<section class="chart-grid cols-1" id="chartRowMktShare">
+  <div class="chart-card">
+    <div class="chart-header"><h3>Market Share PPP (MAT Jun/26)</h3></div>
+    <div class="chart-body" id="chartMktShare"></div>
+    <div class="chart-insight" id="insightMktShare"></div>
+  </div>
+</section>
+
+<section class="chart-grid cols-1" id="chartRowFabBump">
+  <div class="chart-card">
+    <div class="chart-header"><h3>Ranking &amp; Evolução de Market Share por Fabricante (Faturamento R$ PPP) — MAT Jun/22 a Jun/26</h3></div>
+    <div class="chart-body" id="chartFabBump" style="height:520px"></div>
+    <div class="chart-insight" id="insightFabBump"></div>
+  </div>
+</section>
+
+<!-- Passo 3b: Preço médio aberto por fabricante (18 meses) -->
+<section class="invest-wrap" id="chartRowPrecoFab">
+  <div class="invest-card">
+    <div class="chart-header"><h3>Preço Médio Mensal por Fabricante (R$ PPP por unidade) — Últimos 18 meses (Jan/25 a Jun/26)</h3></div>
+    <div class="invest-methodology">
+      Preço médio ponderado de cada mês = faturamento R$ PPP &divide; unidades vendidas, agregado conforme os filtros ativos de molécula e canal. Serve para verificar se os fabricantes que ganham market share estão reduzindo preço. As colunas &Delta; comparam o primeiro mês com venda e o mês mais recente (Jun/26): &Delta; Preço na média ponderada e &Delta; Volume nas unidades.
+    </div>
+    <div class="invest-scroll">
+      <table class="invest" id="precoFabTable">
+        <thead id="precoFabHead"></thead>
+        <tbody id="precoFabBody"></tbody>
+      </table>
+    </div>
+    <div class="chart-insight" id="insightPrecoFab" style="padding:10px 22px 16px;"></div>
+  </div>
+</section>
+
+<!-- Passo 4: Segmento e Comoditização -->
+<section class="chart-grid cols-2" id="chartRowSegmentos">
+  <div class="chart-card">
+    <div class="chart-header"><h3>% por Segmento (PPP) — 5 Anos</h3></div>
+    <div class="chart-body tall" id="chartSeg"></div>
+    <div class="chart-legend-note">Promovido: forte em visitação médica &nbsp;|&nbsp; Trade: foco em PDV e acordos comerciais &nbsp;|&nbsp; Genérico: Princípio Ativo (Sem Marca).</div>
+    <div class="chart-insight" id="insightSeg"></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-header"><h3>Evolução do Preço Médio por Unidade (PPP) por Segmento</h3></div>
+    <div class="chart-body tall" id="chartSegPriceEvo"></div>
+    <div class="chart-insight" id="insightSegPriceEvo"></div>
+  </div>
+</section>
+
+<!-- D. Risco e Ameaças -->
+<!-- Risco Competitivo / Agressividade de Genericos -->
+<section class="chart-grid cols-2-1" id="chartRowRisco">
+  <div class="chart-card">
+    <div class="chart-header"><h3 id="titleRiscoGen">Risco de Comoditização: Moléculas com alta penetração de genéricos (MAT Jun/26)</h3></div>
+    <div class="chart-body tall" id="chartRiscoGen"></div>
+    <div class="chart-insight" id="insightRiscoGen"></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-header"><h3>Impacto Direto: Erosão de Preço do Produto de Referência</h3></div>
+    <div class="chart-body tall" id="chartErosao"></div>
+    <div class="chart-insight" id="insightErosao"></div>
+  </div>
+</section>
+
+<!-- G. DEEP DIVE TÁTICO / APÊNDICE OPERACIONAL -->
+<section class="chart-grid cols-1" id="chartRowPreco">
+  <div class="chart-card">
+    <div class="chart-header"><h3>Preço Médio por Unidade (PPP) por Segmento — MAT Jun/26</h3></div>
+    <div class="chart-body" id="chartPrecoCaixa"></div>
+    <div class="chart-insight" id="insightPrecoCaixa"></div>
+  </div>
+</section>
+
+<!-- 3. Portfólio e SKUs -->
+<section class="table-wrap">
+  <div class="table-card">
+    <div class="chart-header"><h3>Detalhamento por Apresentação</h3></div>
+    <div class="table-scroll">
+      <table class="dt" id="apresTable">
+        <thead><tr id="apresTableHead"></tr></thead>
+        <tbody id="apresTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="chart-grid cols-1" id="chartRowApresDet">
+  <div class="chart-card">
+    <div class="chart-header"><h3>Faturamento por Apresentação com Quantidade por Caixa (Top SKUs) — 5 Anos</h3></div>
+    <div class="chart-body tall" id="chartApresDet"></div>
+    <div class="chart-insight" id="insightApresDet"></div>
+  </div>
+</section>
+
+<section class="chart-grid cols-1" id="chartRowApresDetEvo">
+  <div class="chart-card">
+    <div class="chart-header"><h3>Evolução Histórica de Faturamento por Apresentação com Quantidade por Caixa</h3></div>
+    <div class="chart-body tall" id="chartApresDetEvo"></div>
+    <div class="chart-insight" id="insightApresDetEvo"></div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="dash-footer">
+  <span>Fonte: IQVIA_PMB_202606.xlsx — MAT Jun/22 a Jun/26, Mensal Jul/25–Jun/26 · Valores em R$ PPP (Preço Público)</span>
+</footer>
+
+<!-- Theme Toggle -->
+<button class="theme-toggle" id="themeToggle" title="Alternar tema">☀</button>
+
+<script src="script.js"></script>
+<script src="cerebro.js"></script>
+</body>
+</html>
